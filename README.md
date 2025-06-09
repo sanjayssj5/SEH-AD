@@ -91,8 +91,8 @@ python3 acquisition.py
 
 - First, the script asks if you know the left/right camera positions.
   - **If no**: It captures images from both cameras and exits.
-  - Review images in the `imgs` folder and rerun.
-  - **If yes**: Enter the serial number for left/right cameras. The program saves a `camera_mapping.json` file.
+  - Review images in the `imgs` folder along with the serial number in the image name and rerun.
+  - **If yes**: Enter the position either left/right for the serial no displayed of the cameras. The program saves a `camera_mapping.json` file and exits. Rerun the application.
 
 - **Image Capture Mode**:
   - Press **`p` + `Enter`**: Capture and name the image.
