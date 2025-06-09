@@ -56,7 +56,7 @@ Mount the `imgs` folder so outputs from acquisitions and predictions are visible
 ```bash
 docker run -it --rm \
   -v /dev:/dev \
-  -v your\path\to\imgs\in\host:/home/experiments/imgs \
+  -v your/path/to/imgs/host:/home/experiments/imgs \
   --device-cgroup-rule "c 81:* rmw" \
   --device-cgroup-rule "c 189:* rmw" \
   sanjayssj4/seh-ad:app
