@@ -80,7 +80,7 @@ def predic(dataset_dir, base_dir, model_pth):
     dataset = PredictDataset(path=dataset_dir + base_dir)
     dataloader = DataLoader(dataset=dataset)
     model = Patchcore.load_from_checkpoint(
-        os.path.join(model_pth + base_dir, "Patchcore/RESIZE_NORMALIZED/v1/weights/lightning/model.ckpt"))
+        os.path.join(model_pth + base_dir, "Patchcore/RESIZE_NORMALIZED/v0/weights/lightning/model.ckpt"))
     engine = Engine(
         normalization=NormalizationMethod.NONE,
         task=TaskType.SEGMENTATION,
@@ -165,6 +165,10 @@ def run_pipeline(model_path, image_input_path):
 
     test_dat = []
     for left, middle, right in zip(preds_combined[0], preds_combined[1], preds_combined[2]):
+        pred_nonorm,threshold,idx = find_first_above_threshold(
+            left['pred_nonormalized'], middle['pred_nonormalized'], right['pred_nonormalized'],
+            left['pred_threshold'], middle['pred_threshold'], right['pred_threshold']
+        )
         data = {
             'image_path': [[li, mi, ri] for li, mi, ri in zip(left['image_path'], middle['image_path'], right['image_path'])],
             'pred_scores': torch.max(torch.stack([left['pred_scores'], middle['pred_scores'], right['pred_scores']]), dim=0).values,
@@ -172,16 +176,26 @@ def run_pipeline(model_path, image_input_path):
             'pred_masks': torch.cat((left['pred_masks'], middle['pred_masks'], right['pred_masks']), dim=3),
             'anomaly_maps': torch.cat((left['anomaly_maps'], middle['anomaly_maps'], right['anomaly_maps']), dim=3),
             'segments': [left['segments'][i] + middle['segments'][i] + right['segments'][i] for i in range(len(left['segments']))],
-            'pred_threshold': [left['pred_threshold'], middle['pred_threshold'], right['pred_threshold']],
+            'pred_threshold': threshold,
             'anomaly_threshold': [left['anomaly_threshold'], middle['anomaly_threshold'], right['anomaly_threshold']],
-            'pred_nonormalized': torch.max(torch.stack([left['pred_nonormalized'], middle['pred_nonormalized'], right['pred_nonormalized']]), dim=0).values.tolist(),
+            'pred_nonormalized': pred_nonorm,
             'anomaly_nonormalized': torch.max(torch.stack([left['anomaly_nonormalized_max'], middle['anomaly_nonormalized_max'], right['anomaly_nonormalized_max']]), dim=0).values.tolist()
         }
         test_dat.append(data)
 
     return test_dat,split_patch_dir
-
-
+def find_first_above_threshold(scores1, scores2, scores3, thresh1, thresh2, thresh3):
+    # Extract scalar values from single-element tensors
+    val1, val2, val3 = scores1.item(), scores2.item(), scores3.item()
+    if val1 > thresh1:
+        return val1, thresh1, 0
+    elif val2 > thresh2:
+        return val2, thresh2, 1
+    elif val3 > thresh3:
+        return val3, thresh3, 2
+    else:
+        # Default fallback: return first value and threshold
+        return val1, thresh1, 0
 def visualiser(predictions, sample_idx, output_dir):
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
     cv2_images = [cv2.imread(p) for p in predictions["image_path"][sample_idx]]
@@ -192,13 +206,13 @@ def visualiser(predictions, sample_idx, output_dir):
     pred_label = predictions["pred_labels"][0]
     total_preds = predictions["segments"][0]
     patch_thresholds = predictions["pred_threshold"]
-    image_score = predictions["pred_nonormalized"][0]
+    image_score = predictions["pred_nonormalized"]
     pixel_score = predictions["anomaly_nonormalized"]
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 6))
     fig.suptitle(f"Prediction: {'Anomalous' if pred_label else 'Normal'}\n"
-                 f"Image patches thresholds left to right {patch_thresholds}\n"
-                 f"Image Score {image_score}, Pixel score {pixel_score}\n"
+                 f"Image patches thresholds  {patch_thresholds}\n"
+                 f"Image Score {image_score}\n"
                  f"{predictions['image_path'][0][0]}",
                  fontsize=10)
 
@@ -223,7 +237,7 @@ def visualiser(predictions, sample_idx, output_dir):
 
 
 def plot_single_prediction(predictions, index,op_dir):
-    batch_size = len(predictions[0]['pred_scores'])
+    batch_size = len(predictions[0]['pred_labels'])
     batch_idx = index // batch_size
     sample_idx = index % batch_size
     visualiser(predictions[batch_idx], sample_idx, op_dir)

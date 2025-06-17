@@ -53,6 +53,10 @@ def capture_single_image():
         advnc_mode = rs.rs400_advanced_mode(device)
         advnc_mode.load_json(json_string)
 
+
+         # Warmup - capture and discard several frames
+        for _ in range(30):
+            pipeline.wait_for_frames()
         # Capture frame
         try:
             frames = pipeline.wait_for_frames(6000)  # 6 second timeout
