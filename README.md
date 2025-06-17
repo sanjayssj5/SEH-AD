@@ -1,7 +1,7 @@
 
 # Docker Setup and Usage Guide for the Application
 
-> 🚀 **Docker Repository**: [docker pull sanjayssj4/seh-ad:app]
+> 🚀 **Docker Repository**: [docker pull sanjayssj4/seh-ad:v2]
 
 This GitHub repository includes a `Dockerfile-DockerCUDA` to build the Docker image directly. However, note that **the model and sample images for prediction are not included**.
 
