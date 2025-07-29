@@ -36,7 +36,9 @@ def run_prediction_script():
             "python3",
             script_path,
             "--model_dir", model_dir,
-            "--image_path", image_path
+            "--image_path", image_path,
+            # The threshold should be changed according to the trained model
+            "--threshold", 0.4135,
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,

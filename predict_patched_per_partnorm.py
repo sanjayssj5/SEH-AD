@@ -184,6 +184,7 @@ def run_pipeline(model_path, image_input_path):
         test_dat.append(data)
 
     return test_dat,split_patch_dir
+
 def find_first_above_threshold(scores1, scores2, scores3, thresh1, thresh2, thresh3):
     # Extract scalar values from single-element tensors
     val1, val2, val3 = scores1.item(), scores2.item(), scores3.item()
@@ -196,14 +197,15 @@ def find_first_above_threshold(scores1, scores2, scores3, thresh1, thresh2, thre
     else:
         # Default fallback: return first value and threshold
         return val1, thresh1, 0
-def visualiser(predictions, sample_idx, output_dir):
+
+def visualiser(predictions, sample_idx, output_dir, thr):
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
     cv2_images = [cv2.imread(p) for p in predictions["image_path"][sample_idx]]
     cv2_stacked_image = cv2.hconcat(cv2_images)
     anomaly_map = predictions["anomaly_maps"][0].permute(1, 2, 0).cpu().numpy()
     heat_map = superimpose_anomaly_map(anomaly_map=anomaly_map, image=cv2_stacked_image, normalize=False)
     pred_mask = predictions["pred_masks"][0].permute(1, 2, 0).cpu().numpy()
-    pred_label = predictions["pred_labels"][0]
+    pred_label = predictions["pred_scores"][0] > thr
     total_preds = predictions["segments"][0]
     patch_thresholds = predictions["pred_threshold"]
     image_score = predictions["pred_nonormalized"]
@@ -211,7 +213,7 @@ def visualiser(predictions, sample_idx, output_dir):
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 6))
     fig.suptitle(f"Prediction: {'Anomalous' if pred_label else 'Normal'}\n"
-                 f"Image patches thresholds  {patch_thresholds}\n"
+                 f"Image patches thresholds  {thr}\n"
                  f"Image Score {image_score}\n"
                  f"{predictions['image_path'][0][0]}",
                  fontsize=10)
@@ -236,21 +238,22 @@ def visualiser(predictions, sample_idx, output_dir):
     print(f"Saved output to {output_file}")
 
 
-def plot_single_prediction(predictions, index,op_dir):
-    batch_size = len(predictions[0]['pred_labels'])
+def plot_single_prediction(predictions, index, op_dir, thr):
+    batch_size = len(predictions[0]['pred_scores'])
     batch_idx = index // batch_size
     sample_idx = index % batch_size
-    visualiser(predictions[batch_idx], sample_idx, op_dir)
+    visualiser(predictions[batch_idx], sample_idx, op_dir, thr)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Patchcore inference with custom inputs.")
     parser.add_argument("--model_dir", required=True, help="Path to the model directory (e.g. /exp/model_split_per_partnorm)")
     parser.add_argument("--image_path", required=True, help="Path to the input image directory")
+    parser.add_argument("--threhsold", required=True, help="Threshold used to define an anomaly at image level")
     args = parser.parse_args()
 
     results,dir_op = run_pipeline(model_path=args.model_dir, image_input_path=args.image_path)
 
-    plot_single_prediction(results, 0,"/home/experiments/imgs/predictions")  # You can change the index for different samples
+    plot_single_prediction(results, 0,"/home/experiments/imgs/predictions", args.threhsold)  # You can change the index for different samples
 
     clear_split_image_directory(dir_op)
